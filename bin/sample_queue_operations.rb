@@ -74,11 +74,6 @@ class SampleRunner
     return []
   end
 
-  def print_queues
-    puts "Ready Queue: #{ready_queue}"
-    puts "Waiting Queue: #{waiting_queue}"
-  end
-
   def ask_user_input
     puts "Enter Commands (enter help for usage)"
     $stdout << ">"
@@ -93,6 +88,8 @@ class SampleRunner
       add_proc_interactively
     when "delete_proc"
       delete_proc_interactively
+    when "show_queues"
+      print_queues
     when "exit", "quit"
       return false
     else
@@ -101,11 +98,17 @@ class SampleRunner
     end
   end
 
+  def print_queues
+    puts "Ready Queue: #{ready_queue}"
+    puts "Waiting Queue: #{waiting_queue}"
+  end
+
   def print_usage
     puts "The following are the accepted commands:"
     puts "help        - prints this usuage guide"
     puts "add_proc    - interactively adds a process to a queue"
     puts "delete_proc - interactively remove a process from a queue"
+    puts "show_queues - prints queues to STDOUT"
     puts "exit        - quits the program"
     puts "quit        - alias for exit"
     true

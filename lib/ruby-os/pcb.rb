@@ -42,6 +42,14 @@ class RubyOS::PCB
     end
   end
 
+  def to_s
+    "<PCB pid=#{pid}>"
+  end
+
+  def inspect
+    self.to_s
+  end
+
   # TODO more finite control over PCB contents (adding open files, saving pc,
   # etc.
 end

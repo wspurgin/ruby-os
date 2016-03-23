@@ -43,6 +43,14 @@ class RubyOS::Queue
     @internal != obj
   end
 
+  def to_s
+    "<Queue: #{@internal.inspect}>"
+  end
+
+  def inspect
+    self.to_s
+  end
+
   private
 
   def internal

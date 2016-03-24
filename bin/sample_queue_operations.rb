@@ -101,6 +101,7 @@ class SampleRunner
   def print_queues
     puts "Ready Queue: #{ready_queue}"
     puts "Waiting Queue: #{waiting_queue}"
+    true
   end
 
   def print_usage

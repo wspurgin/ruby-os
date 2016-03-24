@@ -180,6 +180,49 @@ class SampleRunner
   end
 
   def delete_proc_interactively
+    queue = nil
+
+    puts "Which queue do you want to add the process to? ('waiting', or 'ready')"
+    begin
+      print ">"
+      state = $stdin.gets.chomp
+      case state
+      when /w(aiting)?/i
+        state = "waiting"
+        queue = waiting_queue
+      when /r(eady)?/i
+        state = "ready"
+        queue = ready_queue
+      else
+        raise ArgumentError.new "state must be either 'ready' or 'waiting'"
+      end
+    rescue
+      puts "Unrecognized queue '#{state}', please enter a valid queue (ready,waiting)"
+      retry
+    end
+
+    # pcb = nil
+    puts "Enter the PID of the process you wish to remove (hit enter to use the default location)"
+    begin
+      print ">"
+      pos = $stdin.gets.chomp
+      pos = if pos.empty?
+              nil
+            else
+              Integer(pos)
+            end
+      pcb = queue.pop(pos)
+    rescue ArgumentError
+      puts "Value entered is not an integer, please enter integer value"
+      retry
+    end
+
+    if pcb.nil?
+      puts "No process was removed (possible gave a PID that didn't exist?)"
+    else
+      puts "Remove process: #{pcb}"
+    end
+
     print_queues
     true
   end

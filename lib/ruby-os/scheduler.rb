@@ -6,8 +6,8 @@ class RubyOS::Scheduler
     @queue_manager = queue_manager
   end
 
-  def next_proc(queue_identifier)
-    raise NotImpleplementedError.new
+  def next_proc(queue_identifier, current_proc=nil)
+    raise NoQueueFoundError.new queue_identifier if !queue_manager.has_queue? queue_identifier
   end
 
   private
@@ -15,6 +15,12 @@ class RubyOS::Scheduler
   class NotAQueueManagerError < ArgumentError
     def initialize
       super "Expected RubyOS::QueueManager"
+    end
+  end
+
+  class NoQueueFoundError < ArgumentError
+    def initialize(identifier)
+      super "No RubyOS::Queue found identified by '#{identifier}'"
     end
   end
 end

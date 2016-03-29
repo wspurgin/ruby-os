@@ -24,27 +24,39 @@ class RubyOS::Queue
   end
 
   def each(&block)
-    @internal.each(&block)
+    internal.each(&block)
   end
 
   def last
-    @internal[-1]
+    internal[-1]
+  end
+
+  def empty?
+    internal.empty?
   end
 
   def <=>(obj)
-    @internal <=> obj
+    if obj.is_a?(self.class)
+      internal <=> obj.send(:internal)
+    else
+      internal <=> obj
+    end
   end
 
   def ==(obj)
-    @internal == obj
+    if obj.is_a?(self.class)
+      internal == obj.send(:internal)
+    else
+      internal == obj
+    end
   end
 
   def !=(obj)
-    @internal != obj
+    !(self == obj)
   end
 
   def to_s
-    "<Queue: #{@internal.inspect}>"
+    "<Queue: #{internal.inspect}>"
   end
 
   def inspect

@@ -34,4 +34,12 @@ describe RubyOS::Queue do
       expect(res).to eq(procs[1]) # should be <PCB @pid = 2>
     end
   end
+
+  describe "==" do
+    it "should delegate it to the internal array" do
+      input = [1,2,3,4]
+      expect(described_class.new(input)).to eq [1,2,3,4]
+      expect(described_class.new(input)).to eq described_class.new(input.dup)
+    end
+  end
 end

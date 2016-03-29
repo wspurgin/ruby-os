@@ -17,6 +17,10 @@ class RubyOS::QueueManager
     mapped_queues[identifier] = queue
   end
 
+  def has_queue?(identifier)
+    mapped_queues.has_key? identifier
+  end
+
   def [](key)
     mapped_queues[key]
   end

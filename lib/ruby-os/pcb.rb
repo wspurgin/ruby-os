@@ -68,6 +68,7 @@ class RubyOS::PCB
       command: "",
       open_files_list: [],
       registers: {},
+      remaining_processing_time: 0,
     }
   end
 end

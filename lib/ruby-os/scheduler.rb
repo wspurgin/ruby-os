@@ -6,7 +6,7 @@ class RubyOS::Scheduler
     @queue_manager = queue_manager
   end
 
-  def next_proc
+  def next_proc(queue_identifier)
     raise NotImpleplementedError.new
   end
 

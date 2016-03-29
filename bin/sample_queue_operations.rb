@@ -65,7 +65,7 @@ class SampleRunner
           next
         end
         pid, pc, state = pcb_pieces
-        RubyOS::PCB.new(pid, pc, state)
+        RubyOS::PCB.new(pid, pc, state: state)
       end
     end
     procs
@@ -159,7 +159,7 @@ class SampleRunner
       retry
     end
 
-    pcb = RubyOS::PCB.new(pid, addr, state)
+    pcb = RubyOS::PCB.new(pid, addr, state: state)
     puts "Enter the position you wish to insert the process (hit enter to use the default location)"
     begin
       print ">"

@@ -35,6 +35,20 @@ describe RubyOS::PCB do
       pcb = described_class.new(pid, cmd_address)
       expect(pcb.command).to be_empty
     end
+
+    it "should take a hash as the thrid argument to set accounting information" do
+      pid = 123
+      cmd_address = 0x0283
+      pcb = described_class.new(pid, cmd_address,
+                                priority: 4,
+                                command: "/bin/ls")
+      expect(pcb.priority).to eq 4
+      expect(pcb.command).to eq "/bin/ls"
+
+      # This is key, it should not overwrite any of the defaults if left
+      # unspecified
+      expect(pcb.state).to eq "ready"
+    end
   end
 
   describe "Comparisons" do
@@ -53,6 +67,18 @@ describe RubyOS::PCB do
       expect(pcb == pcb).to be_truthy
       other_pcb = described_class.new(123, 0x9999)
       expect(pcb == other_pcb)
+    end
+  end
+
+  describe "#method_missing" do
+    it "should respond allow for data set through the accounting_information to\
+    be called like an attribute" do
+      special_data = "LLAP"
+      uda_state = "I/O blocked"
+      pcb = described_class.new(234, 0x02,
+                                my_special_data: special_data, state: uda_state)
+      expect(pcb.my_special_data).to eq special_data
+      expect(pcb.state).to eq uda_state
     end
   end
 end

@@ -1,18 +1,11 @@
 class RubyOS::PCB
 
-  attr_reader :pid, :state, :priority, :pc, :registers, :open_files_list,
-    :command
+  attr_reader :pid, :pc, :accounting_information
 
-  def initialize(pid, exec_address, priority = nil, state = "ready", command = "")
+  def initialize(pid, exec_address, pcb_info = {})
     @pid = pid
     @pc = exec_address
-    @priority = priority
-    @state = state
-    @command=command
-    @registers = {}
-    @open_files_list = []
-
-    # TODO impelment accounting information once OS is implemented
+    @accounting_information = default_accounting_information.merge(pcb_info)
   end
 
   def update_state(state)
@@ -50,6 +43,31 @@ class RubyOS::PCB
     self.to_s
   end
 
-  # TODO more finite control over PCB contents (adding open files, saving pc,
-  # etc.
+  # Handle dynamic accounting information added (e.g. from simulation) or
+  # otherwise implicit data withing the accounting informtion
+  def method_missing(m, *args, &block)
+    if accounting_information.has_key?(m)
+      accounting_information[m]
+    else
+      super
+    end
+  end
+
+  # If you ever override method missing, you should override respond to missing
+  # too
+  def respond_to_missing?(m, include_private = false)
+    accounting_information.has_key? m || super
+  end
+
+  private
+
+  def default_accounting_information
+    {
+      priority: nil,
+      state: "ready",
+      command: "",
+      open_files_list: [],
+      registers: {},
+    }
+  end
 end

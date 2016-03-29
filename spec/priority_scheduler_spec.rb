@@ -25,7 +25,7 @@ describe RubyOS::PriorityScheduler do
       # NOTE by default, the higher priority are lower numbers (i.e. ascending)
 
       # Find lowest priority value (e.g. the highest priority PCB)
-      expected_priority = @manager[:ready].min(&:priority)
+      expected_priority = @manager[:ready].min_by(&:priority).priority
       # There might be multiple PIDs with this priority, so depending on the
       # tie breaker, a different, but valid, PID might be returned. So collect
       # all the valid PIDs to expect.
@@ -42,6 +42,21 @@ describe RubyOS::PriorityScheduler do
       it "should return the curent PCB" do
         current_proc = RubyOS::PCB.new 18493, 0x2, priority: 1
         expect(@scheduler.next_proc :ready, current_proc).to eq current_proc
+      end
+    end
+
+    context "the identified queue is empty" do
+      it "should return the current proc input" do
+        current_proc = RubyOS::PCB.new 18493, 0x2, priority: 1
+        # add a new empty queue.
+        @manager.add_queue(:test)
+        expect(@scheduler.next_proc :test, current_proc).to eq current_proc
+      end
+
+      it "should return nil if no current_proc is given" do
+        # add a new empty queue.
+        @manager.add_queue(:test)
+        expect(@scheduler.next_proc :test).to be_nil
       end
     end
   end

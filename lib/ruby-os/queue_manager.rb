@@ -17,6 +17,10 @@ class RubyOS::QueueManager
     mapped_queues[identifier] = queue
   end
 
+  def [](key)
+    mapped_queues[key]
+  end
+
   private
 
   class NotAHashError < ArgumentError

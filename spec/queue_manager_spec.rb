@@ -37,4 +37,15 @@ describe RubyOS::QueueManager do
       expect { manager.add_queue(:ready, []) }.to raise_error(ArgumentError)
     end
   end
+
+  describe "#[]" do
+    it "should delegate the accessor operator to internal Hash" do
+      manager = described_class.new
+      state = :ready
+      queue = RubyOS::Queue.new [1, 2, 3, 4]
+      manager.add_queue(state, queue)
+      expect(manager).to respond_to(:[])
+      expect(manager[state]).to eq queue
+    end
+  end
 end

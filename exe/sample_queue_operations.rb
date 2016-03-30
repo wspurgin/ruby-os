@@ -60,12 +60,22 @@ class SampleRunner
       pcb_strings = input.readlines
       procs = pcb_strings.map do |pcb_string|
         pcb_pieces = pcb_string.split(',')
-        if pcb_pieces.count != 3
-          puts "File PCB input was unrecognized, expected format: pid,execution_address,state"
+        if pcb_pieces.count < 3
+          puts "File PCB input was unrecognized, expected format: pid,execution_address,state[,options], see docs for details."
           next
         end
-        pid, pc, state = pcb_pieces
-        RubyOS::PCB.new(pid, pc, state: state)
+        pid, pc, state, *option_args = pcb_pieces
+        options = {}
+        option_args.each do |option_pair|
+          option, value = option_pair.split(":")
+          if value.nil? || option.nil?
+            puts "Option format unrecognized, for #{pcb_string}. See docs for expected format"
+            next
+          end
+          options[option] = value
+        end
+        options.merge!({ state: state })
+        RubyOS::PCB.new(pid, pc, options)
       end
     end
     procs

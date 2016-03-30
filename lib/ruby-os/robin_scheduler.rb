@@ -18,6 +18,7 @@ class RubyOS::RobinScheduler < RubyOS::Scheduler
     super
 
     return queue_manager[queue_identifier].pop if current_proc.nil? && reset!
+    return current_proc if queue_manager[queue_identifier].first.nil? && reset!
 
     # The current proc still has time left.
     if (@timer -= 1) == 0

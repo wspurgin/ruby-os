@@ -49,8 +49,8 @@ class RubyOS::Simulation
 
     puts "This is RubyOS, a simulated OS written in Ruby ✓"
     loop do
-      res = ask_user_input
-      break if !handle(res)
+      cmd, args = ask_user_input.split(" ")
+      break if !handle(cmd, args)
     end
   end
 
@@ -67,14 +67,22 @@ class RubyOS::Simulation
         pid, pc, state, *option_args = pcb_pieces
         pid = pid.to_i
         pc = pc.hex
-        options = {}
+        option_args = Array.wrap(option_args)
+        options = {
+          wait_time: 0
+        }
         option_args.each do |option_pair|
           option, value = option_pair.split(":").map(&:strip)
+          option = option.to_sym
           if value.nil? || option.nil?
             puts "Option format unrecognized, for #{pcb_string}. See docs for expected format"
             next
           end
-          options[option] = value
+          begin
+            options[option] = Integer(value)
+          rescue ArgumentError
+            options[option] = value
+          end
         end
         options.merge!({ state: state })
         RubyOS::PCB.new(pid, pc, options)
@@ -92,7 +100,7 @@ class RubyOS::Simulation
     $stdin.gets.chomp
   end
 
-  def handle(cmd)
+  def handle(cmd, *args)
     case cmd
     when "help"
       print_usage
@@ -102,12 +110,126 @@ class RubyOS::Simulation
       delete_proc_interactively
     when "show_queues"
       print_queues
+    when "simulate"
+      simulate(args)
     when "exit", "quit"
       return false
     else
       puts "Unknown Command"
       print_usage
     end
+  end
+
+  def simulate(args)
+    puts args
+    request = args.any? ? args.first.strip : "srpt"
+    orig_manager = deep_copy_manager
+    @scheduler = case request
+                when /^s((rpt)|(jf))?/i
+                  RubyOS::SrptScheduler.new manager
+                when /^r(obin)?/i
+                  q = 2
+                  puts "Enter time share window, q: (hit enter to use default of 2)"
+                  begin
+                    print ">"
+                    ans = $stdin.gets.chomp
+                    q = Integer(ans) if !ans.empty?
+                  rescue ArgumentError
+                    puts "Value entered is not an integer, please enter integer value"
+                    retry
+                  end
+                  RubyOS::RobinScheduler.new manager, q
+                when /^p(riority)?/i
+                  RubyOS::PriorityScheduler.new manager
+                else
+                  puts "Unrecognized scheduler, choices are srpt, robin, priority"
+                  return true
+                end
+    puts "Beginning simulation with #{scheduler.class}"
+    completed_procs = []
+    avg_waiting_time = 0.0
+    number_of_context_switches = 0
+    total_procs = ready_queue.count + waiting_queue.count
+
+    # Estimate number of iterations
+    max_iterations = (total_procs + ready_queue.sum(&:remaining_processing_time) + waiting_queue.sum(&:remaining_processing_time)) * 10
+    puts "Max iterations calculated from process time: #{max_iterations}"
+
+    ready_queue.each { |pcb| pcb.accounting_information[:wait_time] = 0 }
+    waiting_queue.each { |pcb| pcb.accounting_information[:wait_time] = 0 }
+
+    current_proc = scheduler.next_proc(:ready)
+    log = $stdout
+    max_iterations.times do
+      # Get the next proc
+      next_proc = scheduler.next_proc(:ready, current_proc)
+      break if next_proc.nil? && waiting_queue.empty?
+
+      if current_proc.nil? || next_proc != current_proc
+        number_of_context_switches += 1
+        log.puts "Perfroming context switch with #{next_proc}"
+        ready_queue.push current_proc if !current_proc.nil?
+        current_proc = next_proc
+      end
+
+      current_proc.accounting_information[:remaining_processing_time] -= 1
+
+      if current_proc.remaining_processing_time == 0
+        log.puts "#{current_proc} Completed"
+
+        # place proc in simulated 'success' and 'Free' proc
+        completed_procs << current_proc
+        current_proc = nil
+      end
+
+      log.puts "Current Proc in CPU: #{current_proc}" if !current_proc.nil?
+
+      # NOTE for now, at the end of each cycle one process is moved from the
+      # waiting queue to the ready queue.
+      if waiting_queue.any?
+        _pcb = waiting_queue.pop
+        _pcb.update_state("ready")
+        ready_queue.push _pcb
+        log.puts "New arrival to the :ready queue from the waiting queue. #{_pcb}"
+      end
+
+      # Increment all wait times
+      ready_queue.each { |pcb| pcb.accounting_information[:wait_time] += 1 }
+      waiting_queue.each { |pcb| pcb.accounting_information[:wait_time] += 1 }
+
+      log.puts "Ready Queue: #{ready_queue}" if ready_queue.any?
+    end
+
+    if waiting_queue.any? || ready_queue.any? || !current_proc.nil?
+      puts "Simulation did not finish within #{max_iterations} iterations."
+      puts "This just means that our estimation for max iterations was off."
+      puts "The average wait time will still be calculated."
+    end
+    puts "Completed Procs: #{completed_procs.inspect}"
+    avg_waiting_time = completed_procs.sum(&:wait_time)
+    avg_waiting_time += ready_queue.sum(&:wait_time) if ready_queue.any?
+    avg_waiting_time += waiting_queue.sum(&:wait_time) if waiting_queue.any?
+    avg_waiting_time = avg_waiting_time / total_procs
+
+    puts "\n\nThe Results using the #{scheduler.class} are here:"
+    puts "Average Wait Time: #{avg_waiting_time} time units"
+    puts "Average Context Switches per Process: #{number_of_context_switches.to_f / total_procs}"
+    puts "Total Number of Context Switches: #{number_of_context_switches}"
+    puts "Total Processes: #{total_procs}"
+    puts "Total Completed Procs: #{completed_procs.count}"
+
+    @manager = orig_manager
+  end
+
+  # Ruby is a pass-by-value language, *but* all those values (by default) are
+  # references to memory locations. As such we have to duplicate all the PCBs
+  # and rebuild the Queues and Manager to duplicate the manager. All Ruby
+  # objects have a 'dup' method, but that only does a shallow copy.
+  def deep_copy_manager
+    dup_ready_queue = RubyOS::Queue.new ready_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.pc, pcb.accounting_information.dup }
+    dup_waiting_queue = RubyOS::Queue.new waiting_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.pc, pcb.accounting_information.dup }
+    mapping = { ready: dup_ready_queue, waiting: dup_waiting_queue }
+    RubyOS::QueueManager.new mapping
   end
 
   def print_queues
@@ -122,6 +244,7 @@ class RubyOS::Simulation
     puts "add_proc    - interactively adds a process to a queue"
     puts "delete_proc - interactively remove a process from a queue"
     puts "show_queues - prints queues to STDOUT"
+    puts "simulate [scheduler] - runs simulation with the given scheduler. Choices are sjf, robin, priority. Default is sjf."
     puts "exit        - quits the program"
     puts "quit        - alias for exit"
     true
@@ -133,7 +256,8 @@ class RubyOS::Simulation
     options = {
       state: "ready",
       priority: 4,
-      remaining_processing_time: 8
+      remaining_processing_time: 8,
+      wait_time: 0
     }
     queue = nil
 

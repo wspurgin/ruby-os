@@ -1,4 +1,5 @@
 require 'ruby-os/array'
+require 'ruby-os/enumerable'
 
 class RubyOS::Queue
   include Enumerable

@@ -36,7 +36,7 @@ class RubyOS::PCB
   end
 
   def to_s
-    "<PCB pid=#{pid}>"
+    "<PCB pid=#{pid} remaining=#{remaining_processing_time} priority=#{priority}>"
   end
 
   def inspect

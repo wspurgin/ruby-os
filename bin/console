@@ -1,7 +1,12 @@
 #!/usr/bin/env ruby
 
-require "bundler/setup"
-require "ruby-os"
+begin
+  require 'ruby-os'
+rescue LoadError
+  lib = File.expand_path('../../lib', __FILE__)
+  $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+  retry
+end
 
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.

@@ -65,8 +65,14 @@ class RubyOS::Simulation
           next
         end
         pid, pc, state, *option_args = pcb_pieces
-        pid = pid.to_i
-        pc = pc.hex
+        begin
+          pid = Integer(pid)
+          pc = Integer(pc)
+        rescue ArgumentError
+          puts "File PCB input was unrecognized, expected format: pid,execution_address,state[,options], see docs for details."
+          next
+        end
+        options_bad = false
         option_args = Array.wrap(option_args)
         options = {
           wait_time: 0
@@ -76,19 +82,24 @@ class RubyOS::Simulation
           option = option.to_sym
           if value.nil? || option.nil?
             puts "Option format unrecognized, for #{pcb_string}. See docs for expected format"
-            next
           end
           begin
             options[option] = Integer(value)
           rescue ArgumentError
+            if option =~ /^remaining_processing_time/ || option =~ /^priority/
+              puts "#{option} is a defined option that requires integer input"
+              options_bad = true
+              break
+            end
             options[option] = value
           end
         end
+        next if options_bad
         options.merge!({ state: state })
         RubyOS::PCB.new(pid, pc, options)
       end
     end
-    procs
+    procs.compact
   rescue IOError => e
     puts e
     return []
@@ -121,7 +132,6 @@ class RubyOS::Simulation
   end
 
   def simulate(args)
-    puts args
     request = args.any? ? args.first.strip : "srpt"
     orig_manager = deep_copy_manager
     @scheduler = case request
@@ -305,10 +315,10 @@ class RubyOS::Simulation
       print ">"
       state = $stdin.gets.chomp
       case state
-      when /w(aiting)?/i
+      when /^w(aiting)?/i
         options[:state] = "waiting"
         queue = waiting_queue
-      when /r(eady)?/i
+      when /^r(eady)?/i
         options[:state] = "ready"
         queue = ready_queue
       else
@@ -347,10 +357,10 @@ class RubyOS::Simulation
       print ">"
       state = $stdin.gets.chomp
       case state
-      when /w(aiting)?/i
+      when /^w(aiting)?/i
         state = "waiting"
         queue = waiting_queue
-      when /r(eady)?/i
+      when /^r(eady)?/i
         state = "ready"
         queue = ready_queue
       else

@@ -7,6 +7,34 @@ RubyOS is a fun simulate Operating System written in Ruby!
 Please review the [Usage](#user-content-usage) section and particular the notes
 on [Implementation](#user-content-special-notes-on-implementation).
 
+## Installation
+
+### Getting the source
+
+You can either clone this repository with `git` or get the tarball directly from
+the [homepage](https://github.com/wspurgin/ruby-os) and extract the source from
+that.
+
+Using `git` simply clone the repository:
+
+```
+git clone https://github.com/wspurgin/ruby-os.git
+```
+
+### Requirements to Run
+
+In order to run RubyOS, you need a `ruby` version `>= 2.0.0`. All ruby version
+greater than or equal to `2.0.0` have been tested using
+[RSpec](http://rspec.info/) on [Travis CI](https://travis-ci.org/wspurgin/ruby-os).
+
+### Convenience
+
+For your convenience, a `rake` task as been added to generate random test data
+that conforms to the input specification for `ruby-os`. However, to use this
+task you will have to have `rake` installed. See the
+[Development](#user-content-development) section for how to install development
+dependencies such as `rake`
+
 
 ## Usage
 
@@ -254,33 +282,6 @@ Total Completed Procs: 3
 Enter Commands (enter help for usage)
 >exit
 ```
-
-## Installation
-
-### Getting the source
-
-You can either clone this repository with `git` or get the tarball and extract
-the source from that.
-
-Using `git` simply clone the repository:
-
-```
-git clone https://github.com/wspurgin/ruby-os.git
-```
-
-### Requirements to Run
-
-In order to run RubyOS, you need a `ruby` version `>= 2.0.0`. All ruby version
-greater than or equal to `2.0.0` have been tested using
-[RSpec](http://rspec.info/) on [Travis CI](https://travis-ci.org/wspurgin/ruby-os).
-
-### Convenience
-
-For your convenience, a `rake` task as been added to generate random test data
-that conforms to the input specification for `ruby-os`. However, to use this
-task you will have to have `rake` installed. See the
-[Development](#user-content-development) section for how to install development
-dependencies such as `rake`
 
 ## Special Notes on Implementation
 

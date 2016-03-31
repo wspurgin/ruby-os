@@ -171,25 +171,31 @@ class RubyOS::Simulation
     current_proc = scheduler.next_proc(:ready)
     log = $stdout
     max_iterations.times do
+
       # Get the next proc
       next_proc = scheduler.next_proc(:ready, current_proc)
       break if next_proc.nil? && waiting_queue.empty?
 
-      if current_proc.nil? || next_proc != current_proc
-        number_of_context_switches += 1
-        log.puts "Perfroming context switch with #{next_proc}"
-        ready_queue.push current_proc if !current_proc.nil?
-        current_proc = next_proc
-      end
+      # If we reached this point, there are still processes in the waiting queue
+      # but we have no current process or next process yet, so we should skip
+      # the context switch and current_proc update steps
+      if !next_proc.nil?
+        if current_proc.nil? || next_proc != current_proc
+          number_of_context_switches += 1
+          log.puts "Perfroming context switch with #{next_proc}"
+          ready_queue.push current_proc if !current_proc.nil?
+          current_proc = next_proc
+        end
 
-      current_proc.accounting_information[:remaining_processing_time] -= 1
+        current_proc.accounting_information[:remaining_processing_time] -= 1
 
-      if current_proc.remaining_processing_time == 0
-        log.puts "#{current_proc} Completed"
+        if current_proc.remaining_processing_time <= 0
+          log.puts "#{current_proc} Completed"
 
-        # place proc in simulated 'success' and 'Free' proc
-        completed_procs << current_proc
-        current_proc = nil
+          # place proc in simulated 'success' and 'Free' proc
+          completed_procs << current_proc
+          current_proc = nil
+        end
       end
 
       log.puts "Current Proc in CPU: #{current_proc}" if !current_proc.nil?

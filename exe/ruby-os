@@ -219,11 +219,13 @@ class RubyOS::Simulation
     avg_waiting_time = completed_procs.sum(&:wait_time)
     avg_waiting_time += ready_queue.sum(&:wait_time) if ready_queue.any?
     avg_waiting_time += waiting_queue.sum(&:wait_time) if waiting_queue.any?
-    avg_waiting_time = avg_waiting_time / total_procs
+    divsor = total_procs > 0 ? total_procs : 1
+    avg_waiting_time = avg_waiting_time / divsor
+    avg_context_switches = number_of_context_switches.to_f / divsor
 
     puts "\n\nThe Results using the #{scheduler.class} are here:"
     puts "Average Wait Time: #{avg_waiting_time} time units"
-    puts "Average Context Switches per Process: #{number_of_context_switches.to_f / total_procs}"
+    puts "Average Context Switches per Process: #{avg_context_switches}"
     puts "Total Number of Context Switches: #{number_of_context_switches}"
     puts "Total Processes: #{total_procs}"
     puts "Total Completed Procs: #{completed_procs.count}"

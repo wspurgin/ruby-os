@@ -1,13 +1,23 @@
+# General Files
 *.swp
 /*.csv
 *.gem
 *.rbc
+
+# Defaults
 .config
 /.bundle/
 /.yardoc
 /_yardoc/
+
 /coverage/
+
 /pkg/
 /spec/reports/
+
+
 /tmp/
 /vendor
+
+# Ignore ctags
+tags

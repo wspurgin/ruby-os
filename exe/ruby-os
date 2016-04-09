@@ -360,7 +360,7 @@ class RubyOS::Simulation
   def delete_proc_interactively
     queue = nil
 
-    puts "Which queue do you want to add the process to? ('waiting', or 'ready')"
+    puts "Which queue do you want to delete from? ('waiting', or 'ready')"
     begin
       print ">"
       state = $stdin.gets.chomp
@@ -379,7 +379,6 @@ class RubyOS::Simulation
       retry
     end
 
-    # pcb = nil
     puts "Enter the PID of the process you wish to remove (hit enter to use the default location)"
     begin
       print ">"

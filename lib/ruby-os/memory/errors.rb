@@ -17,4 +17,8 @@ module RubyOS::Memory
   # When an assignment is requested past available memory limits
   class OutOfBoundsAssignment < Error
   end
+
+  # When an assignment is requested over an existing assignment
+  class AssignmentError < Error
+  end
 end

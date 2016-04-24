@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    ruby-os (0.0.0)
+    ruby-os (0.0.1)
 
 GEM
   remote: https://rubygems.org/

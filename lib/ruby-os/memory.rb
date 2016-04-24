@@ -1,4 +1,4 @@
 module RubyOS::Memory
-  include 'memory/manager'
-
 end
+
+require 'ruby-os/memory/manager'

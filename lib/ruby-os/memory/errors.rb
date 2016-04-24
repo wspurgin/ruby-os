@@ -13,4 +13,8 @@ module RubyOS::Memory
   # memory but not enough of it is contiguous. (External Fragementation)
   class NoContiguousMemoryError < OutOfMemoryError
   end
+
+  # When an assignment is requested past available memory limits
+  class OutOfBoundsAssignment < Error
+  end
 end

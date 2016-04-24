@@ -29,4 +29,22 @@ class Hash
     end
     self
   end
+
+  # File activesupport/lib/active_support/core_ext/hash/transform_values.rb, line 7
+  def transform_values
+    return enum_for(:transform_values) unless block_given?
+    result = self.class.new
+    each do |key, value|
+      result[key] = yield(value)
+    end
+    result
+  end
+
+  # File activesupport/lib/active_support/core_ext/hash/transform_values.rb, line 17
+  def transform_values!
+    return enum_for(:transform_values!) unless block_given?
+    each do |key, value|
+      self[key] = yield(value)
+    end
+  end
 end

@@ -25,14 +25,17 @@ class RubyOS::Simulation
   end
 
   def run
-    procs = if ARGV.count > 0
-              file = ARGV[0]
-              read_input_file(file)
-            else
-              []
-            end
 
     puts "Initializing Queues"
+
+    if ARGV.count > 0
+      file = ARGV[0]
+      load_pcbs(file)
+    else
+      []
+    end
+
+    print_queues
 
     Readline.completion_proc = Proc.new do |str|
       # TODO make smarter so that if a command is already specified, use either
@@ -46,6 +49,11 @@ class RubyOS::Simulation
       cmd, args = line.split(" ")
       break if !handle(cmd, args)
     end
+  end
+
+  def load_pcbs(file)
+
+    procs = read_input_file(file)
 
     procs.each_with_index do |pcb, i|
       case pcb.state
@@ -104,20 +112,14 @@ class RubyOS::Simulation
           end
         end
         next if options_bad
-        options.merge!({ state: state })
-        RubyOS::PCB.new(pid, pc, options)
+        options.merge!({ state: state, wait_time: 0})
+        RubyOS::PCB.new(pid, options)
       end
     end
     procs.compact
   rescue IOError => e
     puts e
     return []
-  end
-
-  def ask_user_input
-    puts "Enter Commands (enter help for usage)"
-    $stdout << ">"
-    $stdin.gets.chomp
   end
 
   def handle(cmd, *args)
@@ -132,6 +134,8 @@ class RubyOS::Simulation
       print_queues
     when "simulate"
       simulate(args)
+    when "load_pcbs"
+      load_pcbs(args.first)
     when "exit", "quit"
       return false
     else
@@ -174,10 +178,11 @@ class RubyOS::Simulation
     max_iterations = (total_procs + ready_queue.sum(&:remaining_processing_time) + waiting_queue.sum(&:remaining_processing_time)) * 10
     puts "Max iterations calculated from process time: #{max_iterations}"
 
-    ready_queue.each { |pcb| pcb.accounting_information[:wait_time] = 0 }
-    waiting_queue.each { |pcb| pcb.accounting_information[:wait_time] = 0 }
+    ready_queue.each { |pcb| pcb.wait_time = 0 }
+    waiting_queue.each { |pcb| pcb.wait_time = 0 }
 
     current_proc = scheduler.next_proc(:ready)
+    # TODO allow file logging
     log = $stdout
     max_iterations.times do
 
@@ -196,7 +201,7 @@ class RubyOS::Simulation
           current_proc = next_proc
         end
 
-        current_proc.accounting_information[:remaining_processing_time] -= 1
+        current_proc.remaining_processing_time -= 1
 
         if current_proc.remaining_processing_time <= 0
           log.puts "#{current_proc} Completed"
@@ -219,8 +224,8 @@ class RubyOS::Simulation
       end
 
       # Increment all wait times
-      ready_queue.each { |pcb| pcb.accounting_information[:wait_time] += 1 }
-      waiting_queue.each { |pcb| pcb.accounting_information[:wait_time] += 1 }
+      ready_queue.each { |pcb| pcb.wait_time += 1 }
+      waiting_queue.each { |pcb| pcb.wait_time += 1 }
 
       log.puts "Ready Queue: #{ready_queue}" if ready_queue.any?
     end
@@ -248,17 +253,6 @@ class RubyOS::Simulation
     @manager = orig_manager
   end
 
-  # Ruby is a pass-by-value language, *but* all those values (by default) are
-  # references to memory locations. As such we have to duplicate all the PCBs
-  # and rebuild the Queues and Manager to duplicate the manager. All Ruby
-  # objects have a 'dup' method, but that only does a shallow copy.
-  def deep_copy_manager
-    dup_ready_queue = RubyOS::Queue.new ready_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.pc, pcb.accounting_information.dup }
-    dup_waiting_queue = RubyOS::Queue.new waiting_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.pc, pcb.accounting_information.dup }
-    mapping = { ready: dup_ready_queue, waiting: dup_waiting_queue }
-    RubyOS::QueueManager.new mapping
-  end
-
   def print_queues
     puts "Ready Queue: #{ready_queue}"
     puts "Waiting Queue: #{waiting_queue}"
@@ -272,6 +266,7 @@ class RubyOS::Simulation
     puts "delete_proc - interactively remove a process from a queue"
     puts "show_queues - prints queues to STDOUT"
     puts "simulate [scheduler] - runs simulation with the given scheduler. Choices are sjf, robin, priority. Default is sjf."
+    puts "load_pcbs [file] - load pcbs from the give file"
     puts "exit        - quits the program"
     puts "quit        - alias for exit"
     true
@@ -414,6 +409,30 @@ class RubyOS::Simulation
   end
 
   private
+
+  def defined_commands
+    [
+      "help",
+      "add_proc",
+      "delete_proc",
+      "show_queues",
+      "simulate",
+      "load_pcbs",
+      "exit",
+      "quit",
+    ]
+  end
+
+  # Ruby is a pass-by-value language, *but* all those values (by default) are
+  # references to memory locations. As such we have to duplicate all the PCBs
+  # and rebuild the Queues and Manager to duplicate the manager. All Ruby
+  # objects have a 'dup' method, but that only does a shallow copy.
+  def deep_copy_manager
+    dup_ready_queue = RubyOS::Queue.new ready_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.accounting_information.dup }
+    dup_waiting_queue = RubyOS::Queue.new waiting_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.accounting_information.dup }
+    mapping = { ready: dup_ready_queue, waiting: dup_waiting_queue }
+    RubyOS::QueueManager.new mapping
+  end
 
   def ready_queue
     manager[:ready]

@@ -25,8 +25,7 @@ describe RubyOS::Queue do
     end
 
     it "removes and returns an element with the matching the given pid" do
-      procs = [ RubyOS::PCB.new(1, 0x1), RubyOS::PCB.new(2,0x1),
-                RubyOS::PCB.new(3,0x2)]
+      procs = [ RubyOS::PCB.new(1), RubyOS::PCB.new(2), RubyOS::PCB.new(3)]
       # duplicate procs so that it does not change the existing object
       q = described_class.new(procs.dup)
       res = q.pop(2)

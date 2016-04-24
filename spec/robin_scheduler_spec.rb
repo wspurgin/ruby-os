@@ -6,14 +6,14 @@ describe RubyOS::RobinScheduler do
       @manager = RubyOS::QueueManager.new
       @manager.add_queue(:ready)
       [1,2,3,4,5,6].each do |pid|
-        @manager[:ready].push RubyOS::PCB.new pid, 0x2
+        @manager[:ready].push RubyOS::PCB.new pid
       end
       @q = 2
       @scheduler = described_class.new @manager, @q
     end
 
     it "should return the current_proc if the time share is not over" do
-      current_proc = RubyOS::PCB.new 2931, 0x2
+      current_proc = RubyOS::PCB.new 2931
       expect(@scheduler.next_proc :ready, current_proc).to eq current_proc
     end
 
@@ -27,7 +27,7 @@ describe RubyOS::RobinScheduler do
 
     context "the current_proc is still in the CPU and the timer share runs out" do
       it "should return the next proc and reset the timer" do
-        current_proc = RubyOS::PCB.new 2931, 0x2
+        current_proc = RubyOS::PCB.new 2931
         expected_proc =  @manager[:ready].first
 
         # run the scheduler once to get the run the timer down

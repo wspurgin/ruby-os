@@ -16,7 +16,7 @@ describe RubyOS::PriorityScheduler do
       @manager.add_queue(:ready)
       [1,2,3,4,5,6].each do |pid|
         priority = rand(4) + 1
-        @manager[:ready].push RubyOS::PCB.new pid, 0x2, priority: priority
+        @manager[:ready].push RubyOS::PCB.new pid, priority: priority
       end
       @scheduler = described_class.new @manager
     end
@@ -40,14 +40,14 @@ describe RubyOS::PriorityScheduler do
 
     context "the given `current_proc` has a higher (or equal) priority" do
       it "should return the curent PCB" do
-        current_proc = RubyOS::PCB.new 18493, 0x2, priority: 1
+        current_proc = RubyOS::PCB.new 18493, priority: 1
         expect(@scheduler.next_proc :ready, current_proc).to eq current_proc
       end
     end
 
     context "the identified queue is empty" do
       it "should return the current proc input" do
-        current_proc = RubyOS::PCB.new 18493, 0x2, priority: 1
+        current_proc = RubyOS::PCB.new 18493, priority: 1
         # add a new empty queue.
         @manager.add_queue(:test)
         expect(@scheduler.next_proc :test, current_proc).to eq current_proc

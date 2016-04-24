@@ -32,10 +32,8 @@ class RubyOS::Simulation
       file = ARGV[0]
       load_pcbs(file)
     else
-      []
+      print_queues
     end
-
-    print_queues
 
     Readline.completion_proc = Proc.new do |str|
       # TODO make smarter so that if a command is already specified, use either
@@ -67,6 +65,8 @@ class RubyOS::Simulation
         ready_queue.push pcb
       end
     end
+
+    print_queues
 
     true
   end

@@ -1,19 +1,47 @@
 module RubyOS::Memory
 
   class Manager
-    attr_reader :frame_list, :block_size, :total_frames,
+    attr_reader :block_size, :total_frames,
       :default_proc_memory_limit
 
     def initialize(block_size, total_frames, default_proc_memory_limit)
-      @frame_list = {}
+      @block_size = block_size
+      @total_frames = total_frames
+      @default_proc_memory_limit = default_proc_memory_limit
+      @available_frame_list = {}
+      @reserved_frame_list = {}
     end
 
     def assign_process_base_address(process)
       raise ArgumentError.new "#{self.class.name}: Expected RubyOS::PCB"
     end
 
+    def free_memory(base_address, space = block_size)
+      # TODO ensure frame address/space do not overlap existing "holes" in
+      # available_frame_list, and that we aren't assigning past available
+      # space.
+      available_frame_list[base_address] = space
+    end
+
+    def reserve_memory(base_address, space = memory_limit)
+      # TODO ensure frame address/space do not overlap existing reserved memory
+      # in reserved_frame_list, and that we aren't assigning past available
+      # space.
+      reserved_frame_list[base_address] = space
+    end
+
     def memory_limit
       default_proc_memory_limit
+    end
+
+    private
+
+    def available_frame_list
+      @available_frame_list
+    end
+
+    def reserved_frame_list
+      @reserved_frame_list
     end
   end
 

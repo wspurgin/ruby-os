@@ -31,7 +31,7 @@ class RubyOS::PCB
   end
 
   def <=>(obj)
-    if obj.is_a?(RubyOS::PCB)
+    if obj.is_a?(self.class)
       pid <=> obj.pid
     else
       pid <=> obj

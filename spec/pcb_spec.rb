@@ -2,44 +2,38 @@ require 'spec_helper'
 
 describe RubyOS::PCB do
   describe "#new" do
-    it "should require at least 2 arguements" do
+    it "should require at least 1 arguements" do
       intialize_method = described_class.instance_method(:initialize)
-      expect(intialize_method.arity).to eq(-3) # i.e. has two rquired args
+      expect(intialize_method.arity).to eq(-2) # i.e. has 1 rquired args
     end
 
-    it "should set the first argument as the PCBs pid and second as pc" do
+    it "should set the first argument as the PCBs pid" do
       pid = 123
-      cmd_address = 0x0283
-      pcb = described_class.new(pid, cmd_address)
+      pcb = described_class.new(pid)
       expect(pcb.pid).to eq pid
-      expect(pcb.pc).to eq cmd_address
     end
 
     it "should set the default state as 'ready'" do
       pid = 123
-      cmd_address = 0x0283
-      pcb = described_class.new(pid, cmd_address)
+      pcb = described_class.new(pid)
       expect(pcb.state).to eq("ready")
     end
 
     it "should leave the default priority as nil" do
       pid = 123
-      cmd_address = 0x0283
-      pcb = described_class.new(pid, cmd_address)
+      pcb = described_class.new(pid)
       expect(pcb.priority).to be_nil
     end
 
     it "should leave the default command as blank" do
       pid = 123
-      cmd_address = 0x0283
-      pcb = described_class.new(pid, cmd_address)
+      pcb = described_class.new(pid)
       expect(pcb.command).to be_empty
     end
 
     it "should take a hash as the thrid argument to set accounting information" do
       pid = 123
-      cmd_address = 0x0283
-      pcb = described_class.new(pid, cmd_address,
+      pcb = described_class.new(pid,
                                 priority: 4,
                                 command: "/bin/ls")
       expect(pcb.priority).to eq 4
@@ -54,18 +48,17 @@ describe RubyOS::PCB do
   describe "Comparisons" do
     it "should compare the given object to the PCB's pid" do
       pid = 123
-      cmd_address = 0x0283
-      pcb = described_class.new(pid, cmd_address)
+      pcb = described_class.new(pid)
 
       expect(pcb == 123).to be_truthy
       expect(pcb == 412).to be_falsey
       expect(pcb != 458).to be_truthy
 
-      other_pcb = described_class.new(918237, 0x9999)
+      other_pcb = described_class.new(918237)
       expect(pcb == other_pcb).to be_falsey
       expect(pcb != other_pcb).to be_truthy
       expect(pcb == pcb).to be_truthy
-      other_pcb = described_class.new(123, 0x9999)
+      other_pcb = described_class.new(123)
       expect(pcb == other_pcb)
     end
   end
@@ -75,10 +68,24 @@ describe RubyOS::PCB do
     be called like an attribute" do
       special_data = "LLAP"
       uda_state = "I/O blocked"
-      pcb = described_class.new(234, 0x02,
+      pcb = described_class.new(234,
                                 my_special_data: special_data, state: uda_state)
       expect(pcb.my_special_data).to eq special_data
       expect(pcb.state).to eq uda_state
+    end
+
+    it "should allow setting of attributes in accounting as though they were\
+    instance variables" do
+      special_data = "LLAP"
+      uda_state = "I/O blocked"
+      pcb = described_class.new(234,
+                                my_special_data: special_data, state: uda_state)
+      expect(pcb).to respond_to :my_special_data
+      expect(pcb).to respond_to :my_special_data=
+      expect(pcb).to respond_to :state
+      expect(pcb).to respond_to :state=
+      pcb.state = "I/O read"
+      expect(pcb.state).to eq "I/O read"
     end
   end
 end

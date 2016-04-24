@@ -1,11 +1,14 @@
+require 'ruby-os/hash'
+
 class RubyOS::PCB
 
-  attr_reader :pid, :pc, :accounting_information
+  attr_reader :pid, :accounting_information
 
-  def initialize(pid, exec_address, pcb_info = {})
+  def initialize(pid, pcb_info = {})
     @pid = pid
-    @pc = exec_address
-    @accounting_information = default_accounting_information.merge(pcb_info)
+    @accounting_information = default_accounting_information
+      .merge(pcb_info)
+      .symbolize_keys
   end
 
   def update_state(state)
@@ -46,8 +49,14 @@ class RubyOS::PCB
   # Handle dynamic accounting information added (e.g. from simulation) or
   # otherwise implicit data withing the accounting informtion
   def method_missing(m, *args, &block)
-    if accounting_information.has_key?(m)
-      accounting_information[m]
+    is_assignment = m =~ /=$/
+    attribute = m.to_s.sub(/=$/, '').to_sym
+    if accounting_information.has_key?(attribute)
+      if is_assignment
+        accounting_information[attribute] = args.first
+      else
+        accounting_information[attribute]
+      end
     else
       super
     end
@@ -56,7 +65,7 @@ class RubyOS::PCB
   # If you ever override method missing, you should override respond to missing
   # too
   def respond_to_missing?(m, include_private = false)
-    accounting_information.has_key? m || super
+    accounting_information.has_key? m.to_s.sub(/=$/, '').to_sym || super
   end
 
   private
@@ -69,6 +78,9 @@ class RubyOS::PCB
       open_files_list: [],
       registers: {},
       remaining_processing_time: 0,
+      arrival_time: nil,
+      base_address: nil,
+      memory_limit: nil,
     }
   end
 end

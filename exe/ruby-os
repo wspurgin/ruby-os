@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require 'readline'
+
 begin
   require 'ruby-os'
 rescue LoadError
@@ -32,6 +34,19 @@ class RubyOS::Simulation
 
     puts "Initializing Queues"
 
+    Readline.completion_proc = Proc.new do |str|
+      # TODO make smarter so that if a command is already specified, use either
+      # defined inputs into those commands or just files.
+      defined_commands.grep(/^#{Regexp.escape(str)}/) +
+      Dir[str+'*'].grep(/^#{Regexp.escape(str)}/)
+    end
+
+    puts "This is RubyOS, a simulated OS written in Ruby ✓"
+    while line = Readline.readline('> ', true)
+      cmd, args = line.split(" ")
+      break if !handle(cmd, args)
+    end
+
     procs.each_with_index do |pcb, i|
       case pcb.state
       when "ready"
@@ -45,13 +60,7 @@ class RubyOS::Simulation
       end
     end
 
-    print_queues
-
-    puts "This is RubyOS, a simulated OS written in Ruby ✓"
-    loop do
-      cmd, args = ask_user_input.split(" ")
-      break if !handle(cmd, args)
-    end
+    true
   end
 
   def read_input_file(file)

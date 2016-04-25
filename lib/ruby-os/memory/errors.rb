@@ -9,9 +9,11 @@ module RubyOS::Memory
   class OutOfMemoryError < Error
   end
 
-  # When a process requires contiguous memory assignment, and there is enough
-  # memory but not enough of it is contiguous. (External Fragementation)
-  class NoContiguousMemoryError < OutOfMemoryError
+  # When a process requires contiguous memory assignment, and there is free
+  # memory but there is not enough contiguous memory to service the request.
+  # (and when there's enough available memory to service the request this is
+  # actually External Fragementation).
+  class NoContiguousMemoryError < Error
   end
 
   # When an assignment is requested past available memory limits

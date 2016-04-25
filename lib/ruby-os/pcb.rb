@@ -79,6 +79,7 @@ class RubyOS::PCB
       registers: {},
       remaining_processing_time: 0,
       arrival_time: nil,
+      memory_required: 1,
       base_address: nil,
       memory_limit: nil,
     }

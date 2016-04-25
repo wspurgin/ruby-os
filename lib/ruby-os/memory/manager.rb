@@ -21,7 +21,7 @@ module RubyOS::Memory
     end
 
     def assign_process_base_address(process)
-      raise ArgumentError.new "#{self.class.name}: Expected RubyOS::PCB"
+      raise ArgumentError.new("#{self.class.name}: Expected RubyOS::PCB") if !process.is_a?(RubyOS::PCB)
     end
 
     def free_memory(base_address, space = block_size)

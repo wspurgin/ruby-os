@@ -58,6 +58,14 @@ module RubyOS::Memory
       raise NotImplementedError.new
     end
 
+    def total_available_memory
+      memory_man.count { |_, flag| flag == FREE }
+    end
+
+    def total_reserved_memory
+      memory_man.count { |_, flag| flag == RESERVED }
+    end
+
     # Make all memory locations reserved
     def reserve!
       memory_map.transform_values! { |_| RESERVED }

@@ -14,7 +14,7 @@ module RubyOS::Memory
       @total_memory = total_memory
       @highest_address = total_memory - 1
       @default_proc_memory_limit = default_proc_memory_limit
-      @memory_map = {}
+      @memory_map = Hash.new { |hash, addr| hash[Integer(addr)] }
       (0..@highest_address).each do |address|
         @memory_map[address] = FREE
       end

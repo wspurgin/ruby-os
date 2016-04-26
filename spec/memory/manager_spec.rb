@@ -28,13 +28,28 @@ describe RubyOS::Memory::Manager do
     end
   end
 
+  describe "#assign_process_base_address" do
+    it "should ensure the argument is a RubyOS::PCB" do
+      size = 10
+      manager = described_class.new(size, 1, 1)
+      expect { manager.assign_process_base_address(:not_a_process) }.to raise_error(ArgumentError)
+    end
+
+    it "should ensure that the given process does not already have a base_address set" do
+      size = 10
+      manager = described_class.new(size, 1, 1)
+      pcb = RubyOS::PCB.new 1, base_address: 0x10, memory_required: 0xF
+      expect { manager.assign_process_base_address pcb }.to raise_error RubyOS::Memory::Error
+    end
+  end
+
   describe "#reserve!" do
     it "should change the memory map to mark all addresses as reserved" do
       size = 10
       manager = described_class.new(size, 1, 1)
       expect(manager).to respond_to(:reserve!)
       manager.reserve!
-      expect(manager.memory_map.values).to contain_exactly( *([described_class::RESERVED]*10) )
+      expect(manager.memory_map.values).to contain_exactly( *([described_class::RESERVED]*size) )
     end
   end
 
@@ -47,7 +62,7 @@ describe RubyOS::Memory::Manager do
       manager.reserve! # make everything reserved first
 
       manager.free!
-      expect(manager.memory_map.values).to contain_exactly( *([described_class::FREE]*10) )
+      expect(manager.memory_map.values).to contain_exactly( *([described_class::FREE]*size) )
     end
   end
 

@@ -32,6 +32,28 @@ describe RubyOS::Memory::FirstFitManager do
       expect(last_pcb.base_address).to eq (1450 + 99 + 150)
     end
 
+    it %Q{should return NoContiguousMemoryError even if the only 'hole'
+          available is at the very end of the memory map} do
+      total_memory = 4000
+      block_size = 100
+      default_limit = block_size
+      manager = described_class.new total_memory, block_size, default_limit
+
+      # Fill all the memory
+      manager.reserve!
+
+      # Free the last 99 bytes
+      manager.free_memory(3901, 99)
+
+      pcb = RubyOS::PCB.new 1, memory_required: 100
+      expect { manager.assign_process_base_address(pcb) }.to raise_error RubyOS::Memory::NoContiguousMemoryError
+
+      # Now attempt the last hole with another hole in the middle
+      manager.free_memory(3870, 20)
+
+      expect { manager.assign_process_base_address(pcb) }.to raise_error RubyOS::Memory::NoContiguousMemoryError
+    end
+
     it "should raise an OutOfMemoryError when there is no free space" do
       total_memory = 4000
       block_size = 100

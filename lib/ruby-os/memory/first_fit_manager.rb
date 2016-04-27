@@ -10,9 +10,13 @@ module RubyOS::Memory
       first_reserved, _ = memory_map
         .find(proc { [nil, nil] }) { |addr, flag| addr > starting_address and flag == RESERVED }
 
-      # if the first_reserved address is nil, then there is only available space
-      # after the starting address
-      if first_reserved.nil? || first_reserved - starting_address >= process.memory_required
+      # if the first_reserved address is nil, then there is only one available
+      # space after the starting address, so the 'first_reserved' address is
+      # the highest_address + 1 (which doesn't technically exist, but we can't
+      # go past the total available space so it's basically reserved...).
+      first_reserved = highest_address + 1 if first_reserved.nil?
+
+      if first_reserved - starting_address >= process.memory_required
         process.base_address = starting_address
         process.memory_limit = process.memory_required
       else
@@ -27,7 +31,11 @@ module RubyOS::Memory
 
           first_reserved, _ = memory_map
             .find(proc { [nil, nil] }) { |addr, flag| addr > starting_address and flag == RESERVED }
-          if first_reserved.nil? || first_reserved - starting_address >= process.memory_required
+
+          # If it's nil, the highest_address is the last free spot
+          first_reserved = highest_address + 1 if first_reserved.nil?
+
+          if first_reserved - starting_address >= process.memory_required
             process.base_address = starting_address
             process.memory_limit = process.memory_required
             break

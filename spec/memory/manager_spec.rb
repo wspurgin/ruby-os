@@ -133,4 +133,83 @@ describe RubyOS::Memory::Manager do
     end
   end
 
+  describe "#find_hole" do
+    it "should find the first hole above the given address" do
+      total_memory = 4096
+      block_size = 256
+      default_proc_memory_limit = 256
+
+      manager = described_class.new(total_memory, block_size, default_proc_memory_limit)
+
+      manager.reserve! # reserve all addresses
+
+      # make two holes, one below, and one above
+      manager.free_memory(0, 20)
+      manager.free_memory(150, 400)
+
+      hole = manager.find_hole(100)
+      expect(hole).not_to be_nil
+      expect(hole).to have_key(:base_address)
+      expect(hole).to have_key(:end_address)
+      expect(hole).to have_key(:mem_available)
+
+      expect(hole[:base_address]).to eq 150
+      expect(hole[:mem_available]).to eq 400
+      expect(hole[:end_address]).to eq 550
+    end
+
+    context "No memory is reserved" do
+      it "should pick the starting address" do
+        total_memory = 4096
+        block_size = 256
+        default_proc_memory_limit = 256
+
+        manager = described_class.new(total_memory, block_size, default_proc_memory_limit)
+
+        hole = manager.find_hole
+        expect(hole).not_to be_nil
+        expect(hole).to have_key(:base_address)
+        expect(hole).to have_key(:end_address)
+        expect(hole).to have_key(:mem_available)
+
+        expect(hole[:base_address]).to eq 0
+        expect(hole[:mem_available]).to eq 4096
+        expect(hole[:end_address]).to eq 4096
+      end
+    end
+  end
+
+  describe "#external_fragmentation_total" do
+    it "should equal the total available memory if there are two or more holes" do
+      total_memory = 4096
+      block_size = 256
+      default_proc_memory_limit = 256
+
+      manager = described_class.new(total_memory, block_size, default_proc_memory_limit)
+
+      manager.reserve!
+
+      # make two holes, one below, and one above
+      manager.free_memory(0, 20)
+      manager.free_memory(150, 400)
+      expect(manager.external_fragmentation_total).to eq 420
+      expect(manager.external_fragmentation_total).to eq manager.total_available_memory
+    end
+
+    it "should equal 0 if there's only one hole in memory" do
+      total_memory = 4096
+      block_size = 256
+      default_proc_memory_limit = 256
+
+      manager = described_class.new(total_memory, block_size, default_proc_memory_limit)
+
+      manager.reserve!
+
+      # make two holes, one below, and one above
+      manager.free_memory(150, 400)
+      expect(manager.external_fragmentation_total).to eq 0
+      expect(manager.external_fragmentation_total).not_to eq manager.total_available_memory
+    end
+  end
+
 end

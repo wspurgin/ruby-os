@@ -43,28 +43,71 @@ module RubyOS::Memory
       default_proc_memory_limit
     end
 
-    def external_fragmentation?
-      raise NotImplementedError.new
+    def possible_external_fragmentation?
+      external_fragmentation_total > 0
     end
 
     def internal_fragmentation?
-      raise NotImplementedError.new
+      internal_fragmentation_total > 0
     end
 
     def external_fragmentation_total
-      raise NotImplementedError.new
+      # Is the memory contiguously reserved? or are there holes?
+      hole = find_hole
+
+      return 0 if hole.nil? # all memory is filled
+
+      # Hole goes to end of memory map
+      return 0 if hole[:end_address] > highest_address
+
+      # If we find another hole in memory, then at least the first hole is
+      # an external fragmentation
+      next_hole = find_hole(hole[:end_address])
+      return 0 if next_hole.nil?
+
+      total = hole[:mem_available]
+      loop do
+        total += next_hole[:mem_available]
+        break unless next_hole = find_hole(next_hole[:end_address])
+      end
+
+      total
     end
 
     def internal_fragmentation_total
-      raise NotImplementedError.new
+      0 # Contiguous memory has no internal fragmentation
     end
 
     def total_available_memory
-      memory_man.count { |_, flag| flag == FREE }
+      memory_map.count { |_, flag| flag == FREE }
     end
 
     def total_reserved_memory
-      memory_man.count { |_, flag| flag == RESERVED }
+      memory_map.count { |_, flag| flag == RESERVED }
+    end
+
+    def find_hole(starting_at=nil)
+      hole = {}
+      starting_at = -1 if starting_at.nil?
+
+      # Find leading edge
+      lead, _  = memory_map.find(proc { [nil, nil] }) { |addr, flag| addr > starting_at && flag == FREE }
+
+      # If the address is nil, then there is no memory available.
+      return nil if lead.nil?
+
+      # Next find the trailing edge
+      tail, _ = memory_map.find(proc { [nil, nil] }) { |addr, flag| addr > lead && flag == RESERVED }
+
+      # If it's nil, the highest_address is the last free spot, (and thus
+      # highest_address + 1 is the first 'reserved' spot)
+      tail = highest_address + 1 if tail.nil?
+
+      hole[:base_address] = lead
+      hole[:end_address] = tail
+      hole[:mem_available] = tail - lead
+
+      hole
     end
 
     # Make all memory locations reserved

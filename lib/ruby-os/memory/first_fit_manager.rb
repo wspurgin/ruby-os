@@ -2,7 +2,7 @@ module RubyOS::Memory
   class FirstFitManager < Manager
     def assign_process_base_address(process)
       super
-      # Find the first available address
+      # Find the first available hole
       hole = find_hole
       raise OutOfMemoryError.new if hole.nil?
 

@@ -11,7 +11,7 @@ rescue LoadError
 end
 
 class RubyOS::Simulation
-  attr_accessor :manager, :scheduler
+  attr_accessor :manager, :scheduler, :memory
 
   def self.run
     self.new.run
@@ -22,17 +22,18 @@ class RubyOS::Simulation
     @manager = RubyOS::QueueManager.new
     @manager.add_queue :ready
     @manager.add_queue :waiting
+    @manager.add_queue :blocked
   end
 
   def run
 
-    puts "Initializing Queues"
+    puts "Initializing Queues and Processes"
 
     if ARGV.count > 0
       file = ARGV[0]
       load_pcbs(file)
     else
-      print_queues
+      print_all
     end
 
     Readline.completion_proc = Proc.new do |str|
@@ -51,22 +52,24 @@ class RubyOS::Simulation
 
   def load_pcbs(file)
 
-    procs = read_input_file(file)
+    processes = read_input_file(file)
 
-    procs.each_with_index do |pcb, i|
-      case pcb.state
-      when "ready"
-        ready_queue.push pcb
-      when "waiting"
-        waiting_queue.push pcb
-      else
+    processes.each_with_index do |pcb, i|
+      if !["ready", "waiting"].include? pcb.state
         puts "Unrecognized state: '#{pcb.state}'. Using 'ready' by default"
         pcb.update_state('ready')
-        ready_queue.push pcb
       end
+      if procs.include? pcb.pid
+        puts "Proc with #{pcb.pid} already exists, throwing this process out."
+        next
+      end
+      procs.push pcb
     end
+    sort_process_by_arrival!
 
-    print_queues
+    puts
+    print_all
+    puts
 
     true
   end
@@ -81,10 +84,9 @@ class RubyOS::Simulation
           puts "File PCB input was unrecognized, expected format: pid,execution_address,state:[,options], see docs for details."
           next
         end
-        pid, pc, state, *option_args = pcb_pieces
+        pid, state, *option_args = pcb_pieces
         begin
           pid = Integer(pid)
-          pc = Integer(pc)
         rescue ArgumentError
           puts "File PCB input was unrecognized, expected format: pid,execution_address,state[,options], see docs for details."
           next
@@ -103,7 +105,7 @@ class RubyOS::Simulation
           begin
             options[option] = Integer(value)
           rescue ArgumentError
-            if option =~ /^remaining_processing_time/ || option =~ /^priority/
+            if option =~ /^(remaining_processing_time|priority|arrival_time|memory_required)/
               puts "#{option} is a defined option that requires integer input"
               options_bad = true
               break
@@ -112,7 +114,7 @@ class RubyOS::Simulation
           end
         end
         next if options_bad
-        options.merge!({ state: state, wait_time: 0})
+        options.merge!({ state: state, wait_time: 0 })
         RubyOS::PCB.new(pid, options)
       end
     end
@@ -132,6 +134,8 @@ class RubyOS::Simulation
       delete_proc_interactively
     when "show_queues"
       print_queues
+    when "show_procs"
+      print_all
     when "simulate"
       simulate(args)
     when "load_pcbs"
@@ -256,6 +260,12 @@ class RubyOS::Simulation
   def print_queues
     puts "Ready Queue: #{ready_queue}"
     puts "Waiting Queue: #{waiting_queue}"
+    puts "Block Queue: #{blocked_queue}"
+    true
+  end
+
+  def print_all
+    puts "All Procs: #{procs}"
     true
   end
 
@@ -265,6 +275,7 @@ class RubyOS::Simulation
     puts "add_proc    - interactively adds a process to a queue"
     puts "delete_proc - interactively remove a process from a queue"
     puts "show_queues - prints queues to STDOUT"
+    puts "show_procs  - prints all procs to STDOUT"
     puts "simulate [scheduler] - runs simulation with the given scheduler. Choices are sjf, robin, priority. Default is sjf."
     puts "load_pcbs [file] - load pcbs from the give file"
     puts "exit        - quits the program"
@@ -282,7 +293,6 @@ class RubyOS::Simulation
       memory_required: 10,
       wait_time: 0,
     }
-    queue = nil
 
     puts "Enter process id"
     begin
@@ -328,41 +338,26 @@ class RubyOS::Simulation
       retry
     end
 
-    puts "Which queue do you want to add the process to? ('waiting', or 'ready')"
+    puts "Which queue would the process enter? ('waiting', or 'ready')"
     begin
-      print ">"
       state = Readline.readline('> ', true)
       case state
       when /^w(aiting)?/i
         options[:state] = "waiting"
-        queue = waiting_queue
       when /^r(eady)?/i
         options[:state] = "ready"
-        queue = ready_queue
       else
         raise ArgumentError.new "state must be either 'ready' or 'waiting'"
       end
     rescue
-      puts "Unrecognized queue '#{state}', please enter a valid queue (ready,waiting)"
+      puts "Unrecognized queue: '#{state}', please enter a valid queue (ready,waiting)"
       retry
     end
 
     pcb = RubyOS::PCB.new(pid, options)
-    puts "Enter the position you wish to insert the process (hit enter to use the default location)"
-    begin
-      pos = Readline.readline('> ', true)
-      pos = if pos.empty?
-              nil
-            else
-              Integer(pos)
-            end
-      queue.push(pcb, pos)
-    rescue ArgumentError
-      puts "Value entered is not an integer, please enter integer value"
-      retry
-    end
+    procs.push pcb
 
-    print_queues
+    print_all
     true
   end
 
@@ -409,7 +404,7 @@ class RubyOS::Simulation
       puts "Remove process: #{pcb}"
     end
 
-    print_queues
+    print_all
     true
   end
 
@@ -421,6 +416,7 @@ class RubyOS::Simulation
       "add_proc",
       "delete_proc",
       "show_queues",
+      "show_procs",
       "simulate",
       "load_pcbs",
       "exit",
@@ -435,8 +431,15 @@ class RubyOS::Simulation
   def deep_copy_manager
     dup_ready_queue = RubyOS::Queue.new ready_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.accounting_information.dup }
     dup_waiting_queue = RubyOS::Queue.new waiting_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.accounting_information.dup }
-    mapping = { ready: dup_ready_queue, waiting: dup_waiting_queue }
+    dup_blocked_queue = RubyOS::Queue.new blocked_queue.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.accounting_information.dup }
+    mapping = { ready: dup_ready_queue,
+                waiting: dup_waiting_queue,
+                blocked: dup_blocked_queue }
     RubyOS::QueueManager.new mapping
+  end
+
+  def sort_process_by_arrival!
+    procs.sort_by! { |pcb| [pcb.arrival_time, pcb.pid] }
   end
 
   def ready_queue
@@ -448,7 +451,11 @@ class RubyOS::Simulation
   end
 
   def blocked_queue
-    @blocked_queue ||= RubyOS::Queue.new
+    manager[:blocked]
+  end
+
+  def procs
+    @procs ||= RubyOS::Queue.new
   end
 
 end

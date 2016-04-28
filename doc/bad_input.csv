@@ -1,25 +1,25 @@
-1, 0x6, foo, priority:3, remaining_processing_time:44
-2, 0x3c, waiting, priority:1, remaining_processing_time:38
-3, 0xf, ready, priority:3, remaining_processing_time:38
-4, 0x4, ready, priority:4, remaining_processing_time:17
-5, 0x3c, ready, priority:4, remaining_processing_time:45
-6, 0x63, waiting, priority:4, remaining_processing_time:35
-7, 0x59, waiting, priority:2, remaining_processing_time:5
-8, 0xa, ready, priority:4, remaining_processing_time:50
-9, 0x19, bar, priority:4, remaining_processing_time:adsljga
-10, 0x3c, ready, priority:2, remaining_processing_time:4
-11, 0x44, ready, priority:1, remaining_processing_time:34
-12, 0x2c, ready, priority:1, remaining_processing_time:38
-13, 0xe, waiting, priority:1, remaining_processing_time:14
-14, 0x4f, ready, priority:2, remaining_processing_time:3
-15, 0x8, waiting, priority:3, remaining_processing_time:6
-16, 0x33, waiting, priority:1, remaining_processing_time:19
-17, 0x26, waiting, priority:1, remaining_processing_time:18
-18, 0x3a, waiting, priority:1, remaining_processing_time:29
-19, 0x63, ready, priority:4, remaining_processing_time:17
-20, 0x18, waiting, priority:1, remaining_processing_time:3
-21, 0x5f, ready, priority:1, remaining_processing_time:44
-22, 0x5, ready, priority:4, remaining_processing_time:27
-23, 0x3a, ready, priority:4, remaining_processing_time:13
-24, 0x4a, waiting, priority:1, remaining_processing_time:42
-25, 0x22, ready, priority:3, remaining_processing_time:3
+1,  foo,     priority:4, remaining_processing_time:10, arrival_time:26, memory_required:11
+2,  waiting, priority:4, remaining_processing_time:43, arrival_time:18, memory_required:75
+3,  bar,     priority:3, remaining_processing_time:35, arrival_time:71, memory_required:183
+4,  waiting, priority:4, remaining_processing_time:20, arrival_time:34, memory_required:60
+5,  waiting, priority:2, remaining_processing_time:26, arrival_time:48, memory_required:196
+6,  ready,   priority:4, remaining_processing_time:iortu, arrival_time:22, memory_required:47
+7,  waiting, priority:4, remaining_processing_time:44, arrival_time:amf, memory_required:197
+8,  waiting, priority:4, remaining_processing_time:8,  arrival_time:26, memory_required:196
+9,  ready,   priority:1, remaining_processing_time:28, arrival_time:48, memory_required:150
+10, waiting, priority:4, remaining_processing_time:38, arrival_time:19, memory_required:32
+11, ready,   priority:3, remaining_processing_time:14, arrival_time:52, memory_required:79
+12, ready,   priority:4, remaining_processing_time:20, arrival_time:12, memory_required:338
+12, ready,   priority:1, remaining_processing_time:17, arrival_time:61, memory_required:288
+14, waiting, priority:3, remaining_processing_time:40, arrival_time:22, memory_required:73
+15, ready,   priority:2, remaining_processing_time:18, arrival_time:22, memory_required:poi[p
+16, waiting, priority:2, remaining_processing_time:4,  arrival_time:33, memory_required:366
+17, ready,   priority:1, remaining_processing_time:30, arrival_time:66, memory_required:29
+18, waiting, priority:2, remaining_processing_time:40, arrival_time:39, memory_required:243
+19, ready,   priority:2, remaining_processing_time:8,  arrival_time:71, memory_required:226
+20, ready,   priority:2, remaining_processing_time:47, arrival_time:5,  memory_required:365
+21, ready,   priority:1, remaining_processing_time:18, arrival_time:50, memory_required:269
+22, ready,   priority:3, remaining_processing_time:29, arrival_time:67, memory_required:126
+23, waiting, priority:4, remaining_processing_time:43, arrival_time:82, memory_required:244
+24, ready,   priority:4, remaining_processing_time:32, arrival_time:70, memory_required:43
+25, waiting, priority:1, remaining_processing_time:12, arrival_time:11, memory_required:195

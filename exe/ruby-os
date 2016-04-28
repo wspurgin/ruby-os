@@ -78,7 +78,7 @@ class RubyOS::Simulation
       procs = pcb_strings.map do |pcb_string|
         pcb_pieces = pcb_string.split(',').map(&:strip)
         if pcb_pieces.count < 3
-          puts "File PCB input was unrecognized, expected format: pid,execution_address,state[,options], see docs for details."
+          puts "File PCB input was unrecognized, expected format: pid,execution_address,state:[,options], see docs for details."
           next
         end
         pid, pc, state, *option_args = pcb_pieces
@@ -274,29 +274,19 @@ class RubyOS::Simulation
 
   def add_proc_interactively
     pid = 0
-    addr = 0x0
     options = {
       state: "ready",
       priority: 4,
       remaining_processing_time: 8,
-      wait_time: 0
+      arrival_time: 0,
+      memory_required: 10,
+      wait_time: 0,
     }
     queue = nil
 
     puts "Enter process id"
     begin
-      print ">"
-      pid = Integer($stdin.gets.chomp)
-    rescue ArgumentError
-      puts "Value entered is not an integer, please enter integer value"
-      retry
-    end
-
-    puts "Enter starting address (e.g. 0x2) (hit enter to use default)"
-    begin
-      print ">"
-      ans = $stdin.gets.chomp
-      addr = Integer(ans) if !ans.empty?
+      pid = Integer(Readline.readline('> ', true))
     rescue ArgumentError
       puts "Value entered is not an integer, please enter integer value"
       retry
@@ -304,8 +294,7 @@ class RubyOS::Simulation
 
     puts "Enter process' priority (hit enter to use default of 4)"
     begin
-      print ">"
-      ans = $stdin.gets.chomp
+      ans = Readline.readline('> ', true)
       options[:priority] = Integer(ans) if !ans.empty?
     rescue ArgumentError
       puts "Value entered is not an integer, please enter integer value"
@@ -314,9 +303,26 @@ class RubyOS::Simulation
 
     puts "Enter process' remaining processing time (hit enter to use default of 8)"
     begin
-      print ">"
-      ans = $stdin.gets.chomp
+      ans = Readline.readline('> ', true)
       options[:remaining_processing_time] = Integer(ans) if !ans.empty?
+    rescue ArgumentError
+      puts "Value entered is not an integer, please enter integer value"
+      retry
+    end
+
+    puts "Enter process' arrival time (hit enter to use default of 0)"
+    begin
+      ans = Readline.readline('> ', true)
+      options[:arrival_time] = Integer(ans) if !ans.empty?
+    rescue ArgumentError
+      puts "Value entered is not an integer, please enter integer value"
+      retry
+    end
+
+    puts "Enter process' memory required (hit enter to use default of 10)"
+    begin
+      ans = Readline.readline('> ', true)
+      options[:arrival_time] = Integer(ans) if !ans.empty?
     rescue ArgumentError
       puts "Value entered is not an integer, please enter integer value"
       retry
@@ -325,7 +331,7 @@ class RubyOS::Simulation
     puts "Which queue do you want to add the process to? ('waiting', or 'ready')"
     begin
       print ">"
-      state = $stdin.gets.chomp
+      state = Readline.readline('> ', true)
       case state
       when /^w(aiting)?/i
         options[:state] = "waiting"
@@ -341,11 +347,10 @@ class RubyOS::Simulation
       retry
     end
 
-    pcb = RubyOS::PCB.new(pid, addr, options)
+    pcb = RubyOS::PCB.new(pid, options)
     puts "Enter the position you wish to insert the process (hit enter to use the default location)"
     begin
-      print ">"
-      pos = $stdin.gets.chomp
+      pos = Readline.readline('> ', true)
       pos = if pos.empty?
               nil
             else
@@ -440,6 +445,10 @@ class RubyOS::Simulation
 
   def waiting_queue
     manager[:waiting]
+  end
+
+  def blocked_queue
+    @blocked_queue ||= RubyOS::Queue.new
   end
 
 end

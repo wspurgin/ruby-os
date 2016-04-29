@@ -247,10 +247,11 @@ class RubyOS::Simulation
     total_procs = procs.count
     avg_mem_util = 0.0
     total_time = 0
+    latest_arrival = procs.map(&:arrival_time).max || 0
 
     # Estimate number of iterations
     max_iterations = (total_procs + procs.sum(&:remaining_processing_time) +
-                      procs.max(&:arrival_time).arrival_time) * 10
+                      latest_arrival) * 10
     puts "Max iterations calculated from process time: #{max_iterations}"
 
     procs.each { |pcb| pcb.accounting_information[:wait_time] = 0 }

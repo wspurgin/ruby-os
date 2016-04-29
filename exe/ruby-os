@@ -256,7 +256,6 @@ class RubyOS::Simulation
 
     procs.each { |pcb| pcb.accounting_information[:wait_time] = 0 }
 
-    # current_proc = scheduler.next_proc(:ready)
     current_proc = nil
     # TODO allow file logging
     log = $stdout

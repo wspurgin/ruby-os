@@ -86,6 +86,7 @@ class RubyOS::Simulation
         processes = read_cse7343_input(input)
         break
       end
+      input.rewind
       pcb_strings = input.readlines
       processes = pcb_strings.map do |pcb_string|
         pcb_pieces = pcb_string.split(',').map(&:strip)

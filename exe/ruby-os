@@ -23,6 +23,9 @@ class RubyOS::Simulation
     @manager.add_queue :ready
     @manager.add_queue :waiting
     @manager.add_queue :blocked
+    @memory_size = 10_240
+    @block_size = 40 # 256 blocks
+    @default_alloc = @block_size
   end
 
   def run
@@ -36,16 +39,18 @@ class RubyOS::Simulation
       print_all
     end
 
+    puts "Memory Size: #{@memory_size.to_f / 2**10 } KB"
+
     Readline.completion_proc = Proc.new do |str|
       # TODO make smarter so that if a command is already specified, use either
       # defined inputs into those commands or just files.
       defined_commands.grep(/^#{Regexp.escape(str)}/) +
-      Dir[str+'*'].grep(/^#{Regexp.escape(str)}/)
+        Dir[str+'*'].grep(/^#{Regexp.escape(str)}/)
     end
 
     puts "This is RubyOS, a simulated OS written in Ruby ✓"
     while line = Readline.readline('> ', true)
-      cmd, args = line.split(" ")
+      cmd, *args = line.split(" ")
       break if !handle(cmd, args)
     end
   end
@@ -124,7 +129,8 @@ class RubyOS::Simulation
     return []
   end
 
-  def handle(cmd, *args)
+  def handle(cmd, args)
+    args = Array.wrap(args)
     case cmd
     when "help"
       print_usage
@@ -140,6 +146,8 @@ class RubyOS::Simulation
       simulate(args)
     when "load_pcbs"
       load_pcbs(args.first)
+    when "set_memory"
+      set_memory(args)
     when "exit", "quit"
       return false
     else
@@ -151,48 +159,104 @@ class RubyOS::Simulation
   def simulate(args)
     request = args.any? ? args.first.strip : "srpt"
     orig_manager = deep_copy_manager
+    orig_procs = deep_copy_procs
     @scheduler = case request
-                when /^s((rpt)|(jf))?/i
-                  RubyOS::SrptScheduler.new manager
-                when /^r(obin)?/i
-                  q = 2
-                  puts "Enter time share window, q: (hit enter to use default of 2)"
-                  begin
-                    print ">"
-                    ans = $stdin.gets.chomp
-                    q = Integer(ans) if !ans.empty?
-                  rescue ArgumentError
-                    puts "Value entered is not an integer, please enter integer value"
-                    retry
-                  end
-                  RubyOS::RobinScheduler.new manager, q
-                when /^p(riority)?/i
-                  RubyOS::PriorityScheduler.new manager
-                else
-                  puts "Unrecognized scheduler, choices are srpt, robin, priority"
-                  return true
-                end
-    puts "Beginning simulation with #{scheduler.class}"
+                 when /^s((rpt)|(jf))?/i
+                   RubyOS::SrptScheduler.new manager
+                 when /^r(obin)?/i
+                   q = 2
+                   puts "Enter time share window, q: (hit enter to use default of 2)"
+                   begin
+                     print ">"
+                     ans = $stdin.gets.chomp
+                     q = Integer(ans) if !ans.empty?
+                   rescue ArgumentError
+                     puts "Value entered is not an integer, please enter integer value"
+                     retry
+                   end
+                   RubyOS::RobinScheduler.new manager, q
+                 when /^p(riority)?/i
+                   RubyOS::PriorityScheduler.new manager
+                 else
+                   puts "Unrecognized scheduler, choices are srpt, robin, priority"
+                   return true
+                 end
+    request = args.any? && args.count >= 2 ? args[1].strip : "ff"
+    @memory = case request
+              when /^f(irst)?(f(it)?)?/i
+                RubyOS::Memory::FirstFitManager.new @memory_size, @block_size, @default_alloc
+              when /^b(est)?(f(it)?)?/i
+                RubyOS::Memory::BestFitManager.new @memory_size, @block_size, @default_alloc
+              when /^w(orst)?(f(it)?)?/i
+                RubyOS::Memory::WorstFitManager.new @memory_size, @block_size, @default_alloc
+              else
+                puts "Unrecognized memory manager, choices are firstfit, bestfit, worstfit"
+                return true
+              end
+
+    puts "Beginning simulation with #{scheduler.class} as the Process Scheduler"
+    puts "and #{memory.class} as the Memory Manager"
     completed_procs = []
     avg_waiting_time = 0.0
     number_of_context_switches = 0
-    total_procs = ready_queue.count + waiting_queue.count
+    attempts_to_allocate = 0
+    total_procs = procs.count
+    avg_mem_util = 0.0
+    total_time = 0
 
     # Estimate number of iterations
-    max_iterations = (total_procs + ready_queue.sum(&:remaining_processing_time) + waiting_queue.sum(&:remaining_processing_time)) * 10
+    max_iterations = (total_procs + procs.sum(&:remaining_processing_time) +
+                      procs.max(&:arrival_time).arrival_time) * 10
     puts "Max iterations calculated from process time: #{max_iterations}"
 
-    ready_queue.each { |pcb| pcb.wait_time = 0 }
-    waiting_queue.each { |pcb| pcb.wait_time = 0 }
+    procs.each { |pcb| pcb.wait_time = 0 }
 
-    current_proc = scheduler.next_proc(:ready)
+    # current_proc = scheduler.next_proc(:ready)
+    current_proc = nil
     # TODO allow file logging
     log = $stdout
-    max_iterations.times do
+    max_iterations.times do |t|
+      log.puts "\n#### TIME: #{t} ####"
 
-      # Get the next proc
+      ##### Process arrivals ######
+      # Are there any processes arriving?
+      arrivals = RubyOS::Queue.new
+      loop do
+        break if procs.empty? || procs.first.arrival_time != t
+        arrivals.push procs.pop
+      end
+
+      # First, we should try to get processes out of the blocked queue before
+      # handling arrivals
+      blocked_queue.count.times do
+        attempts_to_allocate += 1
+        blocked_proc = blocked_queue.pop
+        bring_into_memory(blocked_proc, log)
+      end
+
+      # Now we can handle all the arrivals
+      while !arrivals.empty?
+        attempts_to_allocate += 1
+        process = arrivals.pop
+        bring_into_memory(process, log)
+      end
+
+      # Get the next proc to scheudle
       next_proc = scheduler.next_proc(:ready, current_proc)
-      break if next_proc.nil? && waiting_queue.empty?
+      break if next_proc.nil? &&
+        waiting_queue.empty? &&
+        blocked_queue.empty? &&
+        procs.empty?
+
+      # Calculate current memory stats
+      mem_util = memory.total_reserved_memory.to_f/memory.total_memory
+      puts "Memory Utilization: #{(mem_util * 100).round(4)}%"
+      avg_mem_util += mem_util
+      total_time = t + 1
+
+      # Output the queues
+      print_queues(log)
+      log.puts ""
 
       # If we reached this point, there are still processes in the waiting queue
       # but we have no current process or next process yet, so we should skip
@@ -212,6 +276,7 @@ class RubyOS::Simulation
 
           # place proc in simulated 'success' and 'Free' proc
           completed_procs << current_proc
+          memory.free_memory(current_proc.base_address, current_proc.memory_limit)
           current_proc = nil
         end
       end
@@ -227,40 +292,63 @@ class RubyOS::Simulation
         log.puts "New arrival to the :ready queue from the waiting queue. #{_pcb}"
       end
 
-      # Increment all wait times
+      # Increment all wait times for processes in memory
       ready_queue.each { |pcb| pcb.wait_time += 1 }
       waiting_queue.each { |pcb| pcb.wait_time += 1 }
 
-      log.puts "Ready Queue: #{ready_queue}" if ready_queue.any?
     end
+    avg_mem_util /= total_time
 
     if waiting_queue.any? || ready_queue.any? || !current_proc.nil?
       puts "Simulation did not finish within #{max_iterations} iterations."
       puts "This just means that our estimation for max iterations was off."
       puts "The average wait time will still be calculated."
     end
+    if blocked_queue.any?
+      number_too_large = blocked_queue.map(&:memory_required)
+        .count { |m| m > @memory_size }
+      puts "Simulation ended with processes in the blocked queue."
+      if number_too_large > 0
+        puts "Upon inspection, there are #{number_too_large} process where they"
+        puts "required memory exceed the totl memory, #{@memory_size} Bytes."
+      end
+      puts
+    end
     puts "Completed Procs: #{completed_procs.inspect}"
     avg_waiting_time = completed_procs.sum(&:wait_time)
     avg_waiting_time += ready_queue.sum(&:wait_time) if ready_queue.any?
     avg_waiting_time += waiting_queue.sum(&:wait_time) if waiting_queue.any?
     divsor = total_procs > 0 ? total_procs : 1
-    avg_waiting_time = avg_waiting_time / divsor
+    avg_waiting_time = avg_waiting_time.to_f / divsor
     avg_context_switches = number_of_context_switches.to_f / divsor
+    allocated_processes = completed_procs.count + waiting_queue.count + ready_queue.count
+    allocation_probability = allocated_processes.to_f / attempts_to_allocate
+    blocking_probability = 1 - allocation_probability
 
-    puts "\n\nThe Results using the #{scheduler.class} are here:"
+    puts "\n\nThe Results using the #{scheduler.class} and #{memory.class}:"
     puts "Average Wait Time: #{avg_waiting_time} time units"
     puts "Average Context Switches per Process: #{avg_context_switches}"
     puts "Total Number of Context Switches: #{number_of_context_switches}"
     puts "Total Processes: #{total_procs}"
     puts "Total Completed Procs: #{completed_procs.count}"
 
+    puts "\nAverage Memory Utilization: #{(avg_mem_util * 100).round(4)}%"
+    puts "Total Allocated Processes: #{allocated_processes}"
+    puts "Allocation Attempts: #{attempts_to_allocate}"
+    puts "Allocation Probability: #{allocation_probability}"
+    puts "Blocking Probability: #{blocking_probability}"
+
+    puts ""
     @manager = orig_manager
+    @procs = orig_procs
   end
 
-  def print_queues
-    puts "Ready Queue: #{ready_queue}"
-    puts "Waiting Queue: #{waiting_queue}"
-    puts "Block Queue: #{blocked_queue}"
+  def print_queues(log=$stdout)
+    ready_elipse = ready_queue.count > 3 ? "..." : ""
+    waiting_elipse = waiting_queue.count > 3 ? "..." : ""
+    puts "Ready Queue: #{ready_queue.first(3)}#{ready_elipse}" if ready_queue.any?
+    puts "Waiting Queue: #{waiting_queue.first(3)}#{waiting_elipse}" if waiting_queue.any?
+    puts "Block Queue: #{blocked_queue}" if blocked_queue.any?
     true
   end
 
@@ -297,8 +385,12 @@ class RubyOS::Simulation
     puts "Enter process id"
     begin
       pid = Integer(Readline.readline('> ', true))
+      raise "PID not unique! Enter unique pid" if procs.include? pid
     rescue ArgumentError
       puts "Value entered is not an integer, please enter integer value"
+      retry
+    rescue RuntimeError => e
+      puts e
       retry
     end
 
@@ -408,7 +500,48 @@ class RubyOS::Simulation
     true
   end
 
+  def set_memory(args)
+    @memory_size = Integer(args.first.strip) if args.any?
+    puts "Memory size: #{@memory_size} Bytes"
+    true
+  rescue ArgumentError
+    log.puts "Not a valid integer :#{args.first}"
+    return true
+  end
+
   private
+
+  def bring_into_memory(process, log=$stdout)
+    # Attempt to assign proc in memory
+    memory.assign_process_base_address(process)
+
+    # move the process into the proper queue
+    case process.state
+    when /waiting/
+      waiting_queue.push process
+      log.puts "New arrival to waiting queue: #{process}"
+    else
+      ready_queue.push process
+      log.puts "New arrival to ready queue: #{process}"
+    end
+
+  rescue RubyOS::Memory::NoContiguousMemoryError
+    log_contiguous_memory_error(log, process)
+    blocked_queue.push process
+  rescue RubyOS::Memory::OutOfMemoryError
+    log.puts "Memory Full!"
+    blocked_queue.push process
+  end
+
+  def log_contiguous_memory_error(log, process)
+    if memory.possible_external_fragmentation? &&
+        memory.total_available_memory >= process.memory_required
+      log.puts %Q{
+      External Fragmentation! #{memory.total_available_memory} Bytes available,
+      but no section of #{process.memory_required} Bytes contiguously...}
+    end
+    log.puts %Q{No available memory of #{process.memory_required} Bytes}
+  end
 
   def defined_commands
     [
@@ -419,6 +552,7 @@ class RubyOS::Simulation
       "show_procs",
       "simulate",
       "load_pcbs",
+      "set_memory",
       "exit",
       "quit",
     ]
@@ -436,6 +570,10 @@ class RubyOS::Simulation
                 waiting: dup_waiting_queue,
                 blocked: dup_blocked_queue }
     RubyOS::QueueManager.new mapping
+  end
+
+  def deep_copy_procs
+    RubyOS::Queue.new procs.map { |pcb| RubyOS::PCB.new pcb.pid, pcb.accounting_information.dup }
   end
 
   def sort_process_by_arrival!

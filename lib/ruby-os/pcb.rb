@@ -39,7 +39,14 @@ class RubyOS::PCB
   end
 
   def to_s
-    "<PCB pid=#{pid} remaining=#{remaining_processing_time} priority=#{priority}>"
+    attrs = {
+      remaining: remaining_processing_time,
+      priority: priority,
+      base_address: base_address,
+      memory_limit: memory_limit,
+    }.reject { |key, value| value.nil? }
+      .each_with_object("") { |(key, value), str| str << " #{key}=#{value}" }
+    "<PCB pid=#{pid}#{attrs}>"
   end
 
   def inspect

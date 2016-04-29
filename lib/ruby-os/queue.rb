@@ -44,6 +44,10 @@ class RubyOS::Queue
     internal.sort_by!(&block)
   end
 
+  def clear
+    internal.clear
+  end
+
   def <=>(obj)
     if obj.is_a?(self.class)
       internal <=> obj.send(:internal)

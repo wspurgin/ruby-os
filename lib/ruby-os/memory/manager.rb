@@ -6,6 +6,8 @@ module RubyOS::Memory
     attr_reader :block_size, :total_memory, :highest_address,
       :default_proc_memory_limit
 
+    attr_accessor :memory_map
+
     RESERVED = 1
     FREE = 0
 
@@ -135,11 +137,6 @@ module RubyOS::Memory
         memory_map[addr] = yield(memory_map[addr])
       end
     end
-
-    def memory_map
-      @memory_map
-    end
-
   end
 
 end

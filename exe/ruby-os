@@ -80,10 +80,14 @@ class RubyOS::Simulation
   end
 
   def read_input_file(file)
-    procs = []
+    processes = []
     File.open(file, 'r') do |input|
+      if input.readline.split(",").count == 1
+        processes = read_cse7343_input(input)
+        break
+      end
       pcb_strings = input.readlines
-      procs = pcb_strings.map do |pcb_string|
+      processes = pcb_strings.map do |pcb_string|
         pcb_pieces = pcb_string.split(',').map(&:strip)
         if pcb_pieces.count < 3
           puts "File PCB input was unrecognized, expected format: pid,execution_address,state:[,options], see docs for details."
@@ -123,10 +127,45 @@ class RubyOS::Simulation
         RubyOS::PCB.new(pid, options)
       end
     end
-    procs.compact
+    processes.compact
   rescue IOError => e
     puts e
     return []
+  end
+
+  def read_cse7343_input(file_input)
+    file_input.rewind
+    @memory_size = Integer(file_input.readline)
+    puts "Memory being created of size #{@memory_size} Bytes"
+    @memory = RubyOS::Memory::Manager.new @memory_size, @block_size, @default_alloc
+    memory.reserve! # Reserve all memory
+    file_input.readline # spaces being entered
+    while (line = file_input.readline).split(",").count != 1
+      parts = line.split(",")
+      addr = Integer(parts[0])
+      size = Integer(parts[1])
+      begin
+      memory.free_memory(addr, size)
+      rescue RubyOS::Memory::OutOfBoundsAssignment
+        puts "Hole could not be made"
+        puts "0x#{addr.to_s(16)} to 0x#{(addr + size).to_s(16)} is out of memory bounds"
+      end
+    end
+
+    processes = []
+    # Now create procs
+    while line = file_input.gets
+      parts = line.split(",")
+      pid = Integer(parts[0])
+      arrival_time = Integer(parts[1])
+      remaining_processing_time = Integer(parts[2])
+      memory_required = Integer(parts[3])
+      processes << RubyOS::PCB.new(pid, state: "ready", priority: 4, # default priority
+        arrival_time: arrival_time,
+        remaining_processing_time: remaining_processing_time,
+        memory_required: memory_required)
+    end
+    return processes
   end
 
   def handle(cmd, args)
@@ -138,10 +177,12 @@ class RubyOS::Simulation
       add_proc_interactively
     when "delete_proc"
       delete_proc_interactively
-    when "show_queues"
-      print_queues
     when "show_procs"
       print_all
+    when "mem_free"
+      mem_free!
+    when "clear_procs"
+      clear_procs
     when "simulate"
       simulate(args)
     when "load_pcbs"
@@ -160,6 +201,7 @@ class RubyOS::Simulation
     request = args.any? ? args.first.strip : "srpt"
     orig_manager = deep_copy_manager
     orig_procs = deep_copy_procs
+    orig_memory = memory.nil? ? {} : memory.memory_map.dup
     @scheduler = case request
                  when /^s((rpt)|(jf))?/i
                    RubyOS::SrptScheduler.new manager
@@ -193,6 +235,7 @@ class RubyOS::Simulation
                 puts "Unrecognized memory manager, choices are firstfit, bestfit, worstfit"
                 return true
               end
+    memory.memory_map = orig_memory if !orig_memory.empty?
 
     puts "Beginning simulation with #{scheduler.class} as the Process Scheduler"
     puts "and #{memory.class} as the Memory Manager"
@@ -209,7 +252,7 @@ class RubyOS::Simulation
                       procs.max(&:arrival_time).arrival_time) * 10
     puts "Max iterations calculated from process time: #{max_iterations}"
 
-    procs.each { |pcb| pcb.wait_time = 0 }
+    procs.each { |pcb| pcb.accounting_information[:wait_time] = 0 }
 
     # current_proc = scheduler.next_proc(:ready)
     current_proc = nil
@@ -362,7 +405,8 @@ class RubyOS::Simulation
     puts "help        - prints this usuage guide"
     puts "add_proc    - interactively adds a process to a queue"
     puts "delete_proc - interactively remove a process from a queue"
-    puts "show_queues - prints queues to STDOUT"
+    puts "mem_free    - frees all memory in the map"
+    puts "clear_procs - remove all procs from the simulation session"
     puts "show_procs  - prints all procs to STDOUT"
     puts "simulate [scheduler] - runs simulation with the given scheduler. Choices are sjf, robin, priority. Default is sjf."
     puts "load_pcbs [file] - load pcbs from the give file"
@@ -454,37 +498,15 @@ class RubyOS::Simulation
   end
 
   def delete_proc_interactively
-    queue = nil
-
-    puts "Which queue do you want to delete from? ('waiting', or 'ready')"
-    begin
-      print ">"
-      state = $stdin.gets.chomp
-      case state
-      when /^w(aiting)?/i
-        state = "waiting"
-        queue = waiting_queue
-      when /^r(eady)?/i
-        state = "ready"
-        queue = ready_queue
-      else
-        raise ArgumentError.new "state must be either 'ready' or 'waiting'"
-      end
-    rescue
-      puts "Unrecognized queue '#{state}', please enter a valid queue (ready,waiting)"
-      retry
-    end
-
     puts "Enter the PID of the process you wish to remove (hit enter to use the default location)"
     begin
-      print ">"
-      pos = $stdin.gets.chomp
+      pos = Readline.readline('> ', true)
       pos = if pos.empty?
               nil
             else
               Integer(pos)
             end
-      pcb = queue.pop(pos)
+      pcb = procs.pop(pos)
     rescue ArgumentError
       puts "Value entered is not an integer, please enter integer value"
       retry
@@ -493,7 +515,7 @@ class RubyOS::Simulation
     if pcb.nil?
       puts "No process was removed (possible gave a PID that didn't exist?)"
     else
-      puts "Remove process: #{pcb}"
+      puts "Removed process: #{pcb}"
     end
 
     print_all
@@ -507,6 +529,18 @@ class RubyOS::Simulation
   rescue ArgumentError
     log.puts "Not a valid integer :#{args.first}"
     return true
+  end
+
+  def mem_free!
+    @memory.free!
+    puts "All memory is freed"
+    true
+  end
+
+  def clear_procs
+    procs.clear
+    puts "All processes removed"
+    true
   end
 
   private
@@ -548,8 +582,9 @@ class RubyOS::Simulation
       "help",
       "add_proc",
       "delete_proc",
-      "show_queues",
       "show_procs",
+      "mem_free",
+      "clear_procs",
       "simulate",
       "load_pcbs",
       "set_memory",

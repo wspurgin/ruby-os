@@ -16,7 +16,7 @@ task "test_procs.csv", [:n] do |t, args|
   arrival_time_range = (1..90).to_a
   next_pid = 1
   File.open(t.name, "w") do |data|
-    args.n.times do
+    Integer(args.n).times do
       state = states.sample
       priority = priority_range.sample
       remaining_processing_time = remaining_processing_time_range.sample

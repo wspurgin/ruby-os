@@ -1,0 +1,10 @@
+1,  ready,   priority:4, remaining_processing_time:0, arrival_time:0, memory_required:260
+2,  ready,   priority:4, remaining_processing_time:0, arrival_time:0, memory_required:106
+3,  waiting, priority:1, remaining_processing_time:0, arrival_time:0, memory_required:332
+4,  ready,   priority:1, remaining_processing_time:0, arrival_time:0, memory_required:336
+5,  ready,   priority:1, remaining_processing_time:0, arrival_time:0, memory_required:98
+6,  waiting, priority:2, remaining_processing_time:0, arrival_time:0, memory_required:12
+7,  waiting, priority:1, remaining_processing_time:0, arrival_time:0, memory_required:233
+8,  waiting, priority:2, remaining_processing_time:0, arrival_time:0, memory_required:380
+9,  waiting, priority:3, remaining_processing_time:0, arrival_time:0, memory_required:142
+10, waiting, priority:2, remaining_processing_time:0, arrival_time:0, memory_required:121
